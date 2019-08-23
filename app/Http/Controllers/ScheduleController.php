@@ -17,8 +17,8 @@ class ScheduleController extends Controller
 
         Schedule::truncate();
         $airtable = new Airtable(array(
-            'api_key'   => 'keyIvQZcMYmjNbtUO',
-            'base'      => 'appqjWvTygtaX9eil',
+            'api_key'   => env('AIRTABLE_API_KEY'),
+            'base'      => env('AIRTABLE_BASE_URL'),
         ));
 
         $request = $airtable->getContent( 'schedule' );
@@ -38,6 +38,8 @@ class ScheduleController extends Controller
                 $strtointclass = new Stringtoint();
 
                 $schedule->schedule_recordid = $strtointclass->string_to_int($record[ 'id' ]);
+
+                $schedule->schedule_id = isset($record['fields']['id'])?$record['fields']['id']:null;
 
                 $schedule->schedule_services = isset($record['fields']['services'])? implode(",", $record['fields']['services']):null;
 
@@ -69,7 +71,8 @@ class ScheduleController extends Controller
                     }
                 }
 
-                $schedule->schedule_x_phones = isset($record['fields']['x-phones'])? implode(",", $record['fields']['x-phones']):null;
+                $schedule->schedule_description = isset($record['fields']['description-x'])?$record['fields']['description-x']:null;
+                $schedule->schedule_x_phones = isset($record['fields']['phones-x'])? implode(",", $record['fields']['phones-x']):null;
                 $schedule->schedule_days_of_week = isset($record['fields']['days_of_week'])?$record['fields']['days_of_week']:null;
                 $schedule->schedule_opens_at = isset($record['fields']['opens_at'])?$record['fields']['opens_at']:null;
                 $schedule->schedule_closes_at = isset($record['fields']['closes_at'])?$record['fields']['closes_at']:null;

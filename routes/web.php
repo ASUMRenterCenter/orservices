@@ -42,6 +42,8 @@ Route::get('/category_{id}', 'ServiceController@taxonomy');
 
 Route::get('/services_near_me', 'ExploreController@geolocation');
 
+Route::post('/filter', 'ExploreController@filter');
+Route::get('/filter', 'ExploreController@filter');
 
 // Route::post('/explore', 'ExploreController@index');
 Route::get('/profile/{id}', 'ExploreController@profile');
@@ -51,6 +53,10 @@ Route::get('/explore/category_{id}', 'ExploreController@category');
 Route::get('/explore/cityagency_{id}', 'ExploreController@cityagency');
 // Route::post('/search', 'ExploreController@search');
 // Route::get('/filter', 'ExploreController@filterValues');
+
+//download pdf
+Route::get('/download_service/{id}', 'ServiceController@download');
+Route::get('/download_organization/{id}', 'OrganizationController@download');
 
 Route::post('/range', 'ExploreController@filterValues1');
 
@@ -99,6 +105,12 @@ Route::post('/range', 'ExploreController@filterValues1');
         Route::resource('layout_edit', 'EditlayoutController');
         Route::resource('home_edit', 'EdithomeController');
         Route::resource('about_edit', 'EditaboutController');
+
+        Route::resource('map', 'MapController');
         
         Route::get('/datasync', ['uses' => 'PagesController@datasync']);
+
+        Route::resource('data', 'DataController');
+
+        Route::resource('analytics', 'AnalyticsController');
  });

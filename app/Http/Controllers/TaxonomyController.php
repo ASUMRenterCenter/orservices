@@ -17,8 +17,8 @@ class TaxonomyController extends Controller
 
         Taxonomy::truncate();
         $airtable = new Airtable(array(
-            'api_key'   => 'keyIvQZcMYmjNbtUO',
-            'base'      => 'appqjWvTygtaX9eil',
+            'api_key'   => env('AIRTABLE_API_KEY'),
+            'base'      => env('AIRTABLE_BASE_URL'),
         ));
 
         $request = $airtable->getContent( 'taxonomy' );
@@ -43,8 +43,8 @@ class TaxonomyController extends Controller
                     $taxonomy->taxonomy_parent_name = $strtointclass->string_to_int($taxonomy->taxonomy_parent_name);
                 }
                 $taxonomy->taxonomy_vocabulary = isset($record['fields']['vocabulary'])?$record['fields']['vocabulary']:null;
-                $taxonomy->taxonomy_x_description = isset($record['fields']['x-description'])?$record['fields']['x-description']:null;
-                $taxonomy->taxonomy_x_notes = isset($record['fields']['x-notes'])?$record['fields']['x-notes']:null;
+                $taxonomy->taxonomy_x_description = isset($record['fields']['description-x'])?$record['fields']['description-x']:null;
+                $taxonomy->taxonomy_x_notes = isset($record['fields']['notes-x'])?$record['fields']['notes-x']:null;
 
                 if(isset($record['fields']['services'])){
                     $i = 0;

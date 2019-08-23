@@ -5,8 +5,13 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Service;
-use App\District;
-use App\Contact;
+use App\Organization;
+use App\Taxonomy;
+use App\Detail;
+use App\Servicetaxonomy;
+use App\Serviceorganization;
+use App\Servicelocation;
+use App\Servicedetail;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -14,6 +19,10 @@ use Illuminate\Support\Facades\DB;
 use Geolocation;
 use Geocode;
 use App\Location;
+use App\Map;
+use PDF;
+use App\Layout;
+use App\CSV;
 
 class ExploreController extends Controller
 {
@@ -50,8 +59,21 @@ class ExploreController extends Controller
                 $services[] = $value;
             }
         }
+
+        $map = Map::find(1);
+
+        $parent_taxonomy = [];
+        $child_taxonomy = [];
+        $checked_organizations = [];
+        $checked_insurances = [];
+        $checked_ages = [];
+        $checked_languages = [];
+        $checked_settings = [];
+        $checked_culturals = [];
+        $checked_transportations = [];
+        $checked_hours= [];
         
-        return view('frontEnd.near', compact('services','locations', 'chip_title', 'chip_name'));
+        return view('frontEnd.near', compact('services','locations', 'chip_title', 'chip_name', 'map', 'parent_taxonomy', 'child_taxonomy', 'checked_organizations', 'checked_insurances', 'checked_ages', 'checked_languages', 'checked_settings', 'checked_culturals', 'checked_transportations', 'checked_hours'));
     }
 
     public function geocode(Request $request)
@@ -59,9 +81,15 @@ class ExploreController extends Controller
         $ip= \Request::ip();
 
         $chip_title = "Search Address:";
-        $chip_name = $request->input('search_address');
-        $response = Geocode::make()->address($chip_name);
+        $chip_address = $request->input('search_address');
 
+        if($chip_address == null){
+
+            return redirect('services')->with('address', 'Please enter an address to search by location');
+        }
+
+        $response = Geocode::make()->address($chip_address);
+    //     $response = Geocode::make()->address('1 Infinite Loop');
     //     if ($response) {
     //         echo $response->latitude();
     //         echo $response->longitude();
@@ -74,6 +102,8 @@ class ExploreController extends Controller
 
         $lat =$response->latitude();
         $lng =$response->longitude();
+
+
 
         // $lat =37.3422;
         // $lng = -121.905;
@@ -91,277 +121,386 @@ class ExploreController extends Controller
                 $services[] = $value;
             }
         }
-        
-        return view('frontEnd.near', compact('services','locations', 'chip_title', 'chip_name'));
+        $map = Map::find(1);
+
+        $parent_taxonomy = [];
+        $child_taxonomy = [];
+        $checked_organizations = [];
+        $checked_insurances = [];
+        $checked_ages = [];
+        $checked_languages = [];
+        $checked_settings = [];
+        $checked_culturals = [];
+        $checked_transportations = [];
+        $checked_hours= [];
+        $checked_transportations = [];
+        $checked_hours= [];
+
+        return view('frontEnd.near', compact('services','locations', 'chip_title', 'chip_address', 'map', 'parent_taxonomy', 'child_taxonomy', 'checked_organizations', 'checked_insurances', 'checked_ages', 'checked_languages', 'checked_settings', 'checked_culturals', 'checked_transportations', 'checked_hours'));
 
     }
-    public function index(Request $request)
+
+    public function filter(Request $request)
     {
-            $districts = District::orderBy('name')->get();
-            $states = Project::orderBy('project_status')->distinct()->get(['project_status']);
-            $categories = Project::orderBy('category_type_topic_standardize')->distinct()->get(['category_type_topic_standardize']);
-            $cities = Project::orderBy('name_dept_agency_cbo')->distinct()->get(['name_dept_agency_cbo']);
-            $address_district= District::where('name', '=', 1)->get();
-            
 
+        $parents = $request->input('parents');
+        $childs = $request->input('childs');
+        $checked = $request->input('organizations');
+        $details = $request->input('insurances');
+        $ages = $request->input('ages');
+        $languages = $request->input('languages');
+        $service_settings = $request->input('service_settings');
+        $culturals = $request->input('culturals');
+        $transportations = $request->input('transportations');
+        $hours = $request->input('hours');
 
-           
+        $pdf = $request->input('pdf');
+        $csv = $request->input('csv');
 
-            if ($request->input('search')) {
+        $pagination = strval($request->input('paginate'));
 
-                $search = $request->input('search');
-                $projects= Project::with('district')->where('project_title', 'like', '%'.$search.'%')->orwhere('project_description', 'like', '%'.$search.'%')->orwhere('neighborhood', 'like', '%'.$search.'%')->orwhereHas('district', function ($q)  use($search){
-                    $q->where('name', 'like', '%'.$search.'%');
-                })->sortable()->paginate(20);
-
-                return view('frontEnd.explore', compact('projects', 'districts', 'states', 'categories', 'cities', 'address_district'));
-            }
-
-            if ($request->input('address')) {
-                $location = $request->get('address');
-                // var_dump($location);
-                // exit();
-                $location = str_replace("+","%20",$location);
-                $location = str_replace(",",",",$location);
-                $location = str_replace(" ","%20",$location);
-                
-
-                $content = file_get_contents("https://geosearch.planninglabs.nyc/v1/autocomplete?text=".$location);
-
-
-                $result  = json_decode($content);
-                
-                // var_dump($result->features[0]);
-                // exit();
-                //$housenumber=$result->features[3]->properties->housenumber;
-                // var_dump($housenumber);
-                // exit();
-                $name=$result->features[0]->properties->name;
-                $zip=$result->features[0]->properties->postalcode;
-                // var_dump($street, $zipcode);
-                // exit();
-                $name = str_replace(" ","%20",$name);
-                $url = 'https://api.cityofnewyork.us/geoclient/v1/place.json?name=' . $name . '&zip=' . $zip . '&app_id=0359f714&app_key=27da16447759b5111e7dcc067d73dfc8';
-
-                $geoclient = file_get_contents($url);
-
-                $geo  = json_decode($geoclient);
-
-                $cityCouncilDistrict=$geo->place->cityCouncilDistrict;
-                
-                $projects= Project::with('district')->orwhereHas('district', function ($q)  use($cityCouncilDistrict){
-                    $q->where('cityCouncilDistrict', '=', $cityCouncilDistrict);
-                })->sortable()->paginate(20);
-
-                $address_district=District::where('cityCouncilDistrict', '=', $cityCouncilDistrict)->first();
-                
-                
-                if($address_district == NULL){
-                    return redirect('/explore')->with('success', 'no rpoject');
-                }
-                
-                $address_district=$address_district->name;
-                
-                return view('frontEnd.explore', compact('projects', 'districts', 'states', 'categories', 'cities', 'address_district','location'));
-            }
-
-        $projects = Project::sortable()->paginate(20);
-
-        $location_maps = Project::all();
-        
-        return view('frontEnd.explore', compact('projects', 'districts', 'states', 'categories', 'cities', 'count', 'address_district', 'location_maps'));
-    }
-
-  
-
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function profile($id)
-    {
-        $project = Project::find($id);
-        $district = $project->district_ward_name;
-        $contact = Contact::where('district_ward_name', 'like', '%'.$district.'%')->first();
-        return view('frontEnd.profile', compact('project', 'contact'));
-    }
-
-
-    public function filterValues(Request $request)
-    {
-        $price_min = (int)$request->input('price_min');
-        $price_max = (int)$request->input('price_max');
-        $year_min = $request->input('year_min');
-        $year_max = $request->input('year_max');
-        $vote_min = (int)$request->input('vote_min');
-        $vote_max = (int)$request->input('vote_max');
-                
-
-        $projects = Project::with('process')->whereBetween('cost_num', [$price_min, $price_max])->whereBetween('votes', [$vote_min, $vote_max])->whereHas('process', function ($q)  use($year_min, $year_max){
-               $q->whereBetween('vote_year', [$year_min, $year_max]); })->sortable()->paginate(20);
-
-        $districts = District::orderBy('name')->get();
-        $states = Project::orderBy('project_status')->distinct()->get(['project_status']);
-        $categories = Project::orderBy('category_type_topic_standardize')->distinct()->get(['category_type_topic_standardize']);
-        $cities = Project::orderBy('name_dept_agency_cbo')->distinct()->get(['name_dept_agency_cbo']);
-      
-        // var_dump($projects);
+        $sort = $request->input('sort');
+        // var_dump($sort);
         // exit();
-      return view('frontEnd.explore1', compact('projects'))->render();
-            //return response()->json($projects);
 
-    }
-    public function filterValues1(Request $request)
-    {
-       
-                
-                $price_min = (int)$request->input('price_min');
-                $price_max = (int)$request->input('price_max');
-                $year_min = $request->input('year_min');
-                $year_max = $request->input('year_max');
-                $vote_min = (int)$request->input('vote_min');
-                $vote_max = (int)$request->input('vote_max');
+        
+        $services = \App\Service::with('taxonomy');
+        $locations = \App\Location::with('services','organization');
 
-                $search = $request->input('Search');
+        $parent_taxonomy = [];
+        $child_taxonomy = [];
+        $checked_organizations = [];
+        $checked_insurances = [];
+        $checked_ages = [];
+        $checked_languages = [];
+        $checked_settings = [];
+        $checked_culturals = [];
+        $checked_transportations = [];
+        $checked_hours= [];
+
+        $child_taxonomy_names = '';
+        $checked_organization_names ='';
+        $checked_insurance_names = '';
+        $checked_age_names = '';
+        $checked_language_names = '';
+        $checked_setting_names = '';
+        $checked_cultural_names = '';
+        $checked_transportation_names = [];
+        $checked_hour_names= [];
 
 
-                $district = $request->input('District');
-                $status = $request->input('Status');
-                $category = $request->input('Category');        
-                $city = $request->input('City');
-                $sort = $request->input('selected_sort');
-                $location = $request->input('address');
+        if($parents!=null){
 
-                // var_dump($price_min,$price_max,$year_min,$year_max,$vote_min,$vote_max,$district,$status,$category,$city);
-                //  exit(); 
+            $parent_taxonomy = Taxonomy::whereIn('taxonomy_recordid', $parents)->pluck('taxonomy_recordid');
+            $parent_taxonomy = json_decode(json_encode($parent_taxonomy));
 
-                $projects = Project::whereBetween('cost_num', [$price_min, $price_max])->whereBetween('votes', [$vote_min, $vote_max])->whereBetween('vote_year', [$year_min, $year_max]);
+            $taxonomy = Taxonomy::whereIn('taxonomy_parent_name', $parents)->pluck('taxonomy_recordid');
+
+            $service_ids = Servicetaxonomy::whereIn('taxonomy_recordid', $taxonomy)->groupBy('service_recordid')->pluck('service_recordid');
+ 
+            $location_ids = Servicelocation::whereIn('service_recordid', $service_ids)->groupBy('location_recordid')->pluck('location_recordid');
+            $services = $services->whereIn('service_recordid', $service_ids);
+            $locations = $locations->whereIn('location_recordid', $location_ids)->with('services','organization');
+
+        }
+
+        if($childs!=null){
+            $child_taxonomy = Taxonomy::whereIn('taxonomy_recordid', $childs)->pluck('taxonomy_recordid');
+            $child_taxonomy_names = Taxonomy::whereIn('taxonomy_recordid', $childs)->pluck('taxonomy_name');
+
+            $child_taxonomy = json_decode(json_encode($child_taxonomy));
+            
+            $service_ids = Servicetaxonomy::whereIn('taxonomy_recordid', $childs)->groupBy('service_recordid')->pluck('service_recordid');
+            $location_ids = Servicelocation::whereIn('service_recordid', $service_ids)->groupBy('location_recordid')->pluck('location_recordid');
+            $services = $services->whereIn('service_recordid', $service_ids);
+            $locations = $locations->whereIn('location_recordid', $location_ids)->with('services','organization');
+        }
+
+        if($checked!=null){
+            $checked_organizations = Organization::whereIn('organization_recordid', $checked)->pluck('organization_recordid');
+            $checked_organization_names = Organization::whereIn('organization_recordid', $checked)->pluck('organization_name');
+
+            $checked_organizations = json_decode(json_encode($checked_organizations));
+            
+            $service_ids = Serviceorganization::whereIn('organization_recordid', $checked)->groupBy('service_recordid')->pluck('service_recordid');
+            $location_ids = Servicelocation::whereIn('service_recordid', $service_ids)->groupBy('location_recordid')->pluck('location_recordid');
+            $services = $services->whereIn('service_recordid', $service_ids);
+            $locations = $locations->whereIn('location_recordid', $location_ids)->with('services','organization');
+        }
+
+        if($details!=null){
+            $checked_insurances = Detail::whereIn('detail_recordid', $details)->pluck('detail_recordid');
+            $checked_insurance_names = Detail::whereIn('detail_recordid', $details)->pluck('detail_value');
+
+            $checked_insurances = json_decode(json_encode($checked_insurances));
+            
+            $service_ids = Servicedetail::whereIn('detail_recordid', $details)->groupBy('service_recordid')->pluck('service_recordid');
+            $location_ids = Servicelocation::whereIn('service_recordid', $service_ids)->groupBy('location_recordid')->pluck('location_recordid');
+            $services = $services->whereIn('service_recordid', $service_ids);
+            $locations = $locations->whereIn('location_recordid', $location_ids)->with('services','organization');
+        }
+
+        if($ages!=null){
+            $checked_ages = Detail::whereIn('detail_recordid', $ages)->pluck('detail_recordid');
+            $checked_age_names = Detail::whereIn('detail_recordid', $ages)->pluck('detail_value');
+
+            $checked_ages = json_decode(json_encode($checked_ages));
+            
+            $service_ids = Servicedetail::whereIn('detail_recordid', $ages)->groupBy('service_recordid')->pluck('service_recordid');
+            $location_ids = Servicelocation::whereIn('service_recordid', $service_ids)->groupBy('location_recordid')->pluck('location_recordid');
+            $services = $services->whereIn('service_recordid', $service_ids);
+            $locations = $locations->whereIn('location_recordid', $location_ids)->with('services','organization');
+        }
+
+        if($languages!=null){
+            $checked_languages = Detail::whereIn('detail_recordid', $languages)->pluck('detail_recordid');
+            $checked_language_names = Detail::whereIn('detail_recordid', $languages)->pluck('detail_value');
+
+            $checked_languages = json_decode(json_encode($checked_languages));
+            
+            $service_ids = Servicedetail::whereIn('detail_recordid', $languages)->groupBy('service_recordid')->pluck('service_recordid');
+            $location_ids = Servicelocation::whereIn('service_recordid', $service_ids)->groupBy('location_recordid')->pluck('location_recordid');
+            $services = $services->whereIn('service_recordid', $service_ids);
+            $locations = $locations->whereIn('location_recordid', $location_ids)->with('services','organization');
+        }
+
+        if($service_settings!=null){
+            $checked_settings = Detail::whereIn('detail_recordid', $service_settings)->pluck('detail_recordid');
+            $checked_setting_names = Detail::whereIn('detail_recordid', $service_settings)->pluck('detail_value');
+
+            $checked_settings = json_decode(json_encode($checked_settings));
+            
+            $service_ids = Servicedetail::whereIn('detail_recordid', $service_settings)->groupBy('service_recordid')->pluck('service_recordid');
+            $location_ids = Servicelocation::whereIn('service_recordid', $service_settings)->groupBy('location_recordid')->pluck('location_recordid');
+            $services = $services->whereIn('service_recordid', $service_ids);
+            $locations = $locations->whereIn('location_recordid', $location_ids)->with('services','organization');
+        }
+
+        if($culturals!=null){
+            $checked_culturals = Detail::whereIn('detail_recordid', $culturals)->pluck('detail_recordid');
+            $checked_cultural_names = Detail::whereIn('detail_recordid', $culturals)->pluck('detail_value');
+
+            $checked_culturals = json_decode(json_encode($checked_culturals));
+            
+            $service_ids = Servicedetail::whereIn('detail_recordid', $culturals)->groupBy('service_recordid')->pluck('service_recordid');
+            $location_ids = Servicelocation::whereIn('service_recordid', $service_ids)->groupBy('location_recordid')->pluck('location_recordid');
+            $services = $services->whereIn('service_recordid', $service_ids);
+            $locations = $locations->whereIn('location_recordid', $location_ids)->with('services','organization');
+        }
+
+        if($transportations!=null){
+            $checked_transportations = Detail::whereIn('detail_recordid', $transportations)->pluck('detail_recordid');
+            $checked_transportation_names = Detail::whereIn('detail_recordid', $transportations)->pluck('detail_value');
+
+            $checked_transportations = json_decode(json_encode($checked_transportations));
+            
+            $service_ids = Servicedetail::whereIn('detail_recordid', $transportations)->groupBy('service_recordid')->pluck('service_recordid');
+            $location_ids = Servicelocation::whereIn('service_recordid', $service_ids)->groupBy('location_recordid')->pluck('location_recordid');
+            $services = $services->whereIn('service_recordid', $service_ids);
+            $locations = $locations->whereIn('location_recordid', $location_ids)->with('services','organization');
+        }
+
+        if($hours!=null){
+            $checked_hours = Detail::whereIn('detail_recordid', $hours)->pluck('detail_recordid');
+            $checked_hour_names = Detail::whereIn('detail_recordid', $hours)->pluck('detail_value');
+
+            $checked_hours = json_decode(json_encode($checked_hours));
+            
+            $service_ids = Servicedetail::whereIn('detail_recordid', $hours)->groupBy('service_recordid')->pluck('service_recordid');
+            $location_ids = Servicelocation::whereIn('service_recordid', $service_ids)->groupBy('location_recordid')->pluck('location_recordid');
+            $services = $services->whereIn('service_recordid', $service_ids);
+            $locations = $locations->whereIn('location_recordid', $location_ids)->with('services','organization');
+        }
+
+        if($sort == 'Service Name'){
+            $services = $services->orderBy('service_name');
+        }
+
+        if($sort == 'Organization Name'){
+            $services = $services->with(['organizations' => function($query) {
+                $query->orderBy('id');
+            }]);
+        }
+
+        if($pdf == 'pdf'){
+
+            $layout = Layout::find(1);
+
+            $services = $services->get();
+
+            $pdf = PDF::loadView('frontEnd.services_download', compact('services', 'layout'));
+
+            return $pdf->download('services.pdf');
+        }
+
+        if($csv == 'csv'){
+            $csvExporter = new \Laracsv\Export();
+
+            $layout = Layout::find(1);
+
+            $services = $services->whereNotNull('service_name')->get();
+
+            foreach ($services as $service) {
+                $taxonomies = '';
+                $organizations = '';
+                $phones = '';
+                $address1 ='';
+                $contacts ='';
+                $details = '';
+
+                foreach($service->taxonomy as $key => $taxonomy){
+                    $taxonomies = $taxonomies.$taxonomy->taxonomy_name.',';
+                }
+                $service['taxonomies'] = $taxonomies;
+
+                foreach ($service->organizations as $organization) {
+                    $organizations = $organizations.$organization->organization_name;
+                }    
+                $service['organizations'] = $organizations;
+
+                foreach($service->phone as $phone1){
+                    $phones = $phones.$phone1->phone_number;
+                }
+                $service['phones'] = $phones;
+
+                foreach($service->address as $address){
+                    $address1 = $address1.$address->address_1.' '.$address->address_city.' '.$address->address_state_province.' '.$address->address_postal_code;
+                }
+                $service['address1'] = $address1;
+
+                foreach($service->contact as $contact){
+                    $contacts = $contacts.$contact->contact_name;
+                }
+                $service['contacts'] = $contacts;
+
+
+
+                $show_details = [];
                            
-                 // var_dump($price_min,$price_max,$year_min,$year_max,$vote_min,$vote_max,$district,$status,$category,$city,count($projects));
-                 // exit(); 
-               
-
-                if($district!=NULL){
-
-                    $district = District::where('name', '=', $district)->first();
-                    $district = $district->recordid;
-                    $projects = $projects->where('district_ward_name', '=', $district);
-                    
-                }
-                
-                if($status!=NULL){
-
-                    $projects = $projects->where('project_status_category', 'like', '%'.$status.'%');
-                }
-
-                if($category!=NULL){
-                    $projects = $projects->where('category_type_topic_standardize', '=', $category);
-                }
-
-                if($city!=NULL){
-                    $projects = $projects->where('name_dept_agency_cbo', '=', $city);
-                }
-                
-                if($sort!=NULL){
-
-                    if($sort=='Price: Low to High'){
-                        $projects = $projects->orderBy('cost_num');
-                    }
-
-                    if($sort=='Price: High to Low'){
-                        $projects = $projects->orderBy('cost_num', 'desc');
-                    }
-
-                    if($sort=='Year: Low to High'){
-                        $projects = $projects->orderBy('vote_year');
-                    }
-
-                    if($sort=='Year: High to Low'){
-                        $projects = $projects->orderBy('vote_year', 'desc');
-                    }
-
-                    if($sort=='Votes: Low to High'){
-                        $projects = $projects->orderBy('votes');
-                    }
-
-                    if($sort=='Votes: High to Low'){
-                        $projects = $projects->orderBy('votes', 'desc');
-                    }
-
-                    if($sort=='Status: Complete to Needed'){
-                        $projects = $projects->orderBy('project_status_category');
-                    }
-
-                    if($sort=='Status: Needed to Complete'){
-                        $projects = $projects->orderBy('project_status_category', 'desc');
-                    }
-
-                }
-                $address_district="";
-
-                if($location != NULL)
+                foreach($service->details as $detail)
                 {
-                    
-                    $location = str_replace("+","%20",$location);
-                    $location = str_replace(",",",",$location);
-                    $location = str_replace(" ","%20",$location);
-                    
-
-                    $content = file_get_contents("https://geosearch.planninglabs.nyc/v1/autocomplete?text=".$location);
-
-
-                    $result  = json_decode($content);
-                    
-                    // var_dump($result->features[0]);
-                    // exit();
-                    //$housenumber=$result->features[3]->properties->housenumber;
-                    // var_dump($housenumber);
-                    // exit();
-                    $name=$result->features[0]->properties->name;
-                    $zip=$result->features[0]->properties->postalcode;
-                    // var_dump($street, $zipcode);
-                    // exit();
-                    $name = str_replace(" ","%20",$name);
-                    $url = 'https://api.cityofnewyork.us/geoclient/v1/place.json?name=' . $name . '&zip=' . $zip . '&app_id=0359f714&app_key=27da16447759b5111e7dcc067d73dfc8';
-
-                    $geoclient = file_get_contents($url);
-
-                    $geo  = json_decode($geoclient);
-
-                    $cityCouncilDistrict=$geo->place->cityCouncilDistrict;
-                    
-                    $projects= $projects->with('district')->orwhereHas('district', function ($q)  use($cityCouncilDistrict){
-                        $q->where('cityCouncilDistrict', '=', $cityCouncilDistrict);
-                    });
-
-                    $address_district=District::where('cityCouncilDistrict', '=', $cityCouncilDistrict)->first();
-                
-                
-                    if($address_district == NULL){
-                        return redirect('/explore')->with('success', 'no rpoject');
+                    for($i = 0; $i < count($show_details); $i ++){
+                        if($show_details[$i]['detail_type'] == $detail->detail_type)
+                            break;
                     }
-                    
-                    $address_district=$address_district->name;
+                    if($i == count($show_details)){
+                        $show_details[$i] = array('detail_type'=> $detail->detail_type, 'detail_value'=> $detail->detail_value);
+                    }
+                    else{
+                        $show_details[$i]['detail_value'] = $show_details[$i]['detail_value'].', '.$detail->detail_value;
+                    }
+                                                               
+                }  
+                foreach($show_details as $detail){
+                    $details = $details.$detail['detail_type'].':'.$detail['detail_value'].'; ';
                 }
-                 if($search != NULL)
-                {
-                    // $projects = $projects->with('district')->where('project_title', 'like', '%'.$search.'%')->orwhere('project_description', 'like', '%'.$search.'%')->orwhere('neighborhood', 'like', '%'.$search.'%')->orwhereHas('district', function ($q)  use($search){
-                    // $q->where('name', 'like', '%'.$search.'%');
-                    // });
+                $service['details'] = $details;           
+             } 
 
-                    $projects = $projects->with('district')->where(function($q) use($search){
-                        $q->where('project_title', 'like', '%'.$search.'%')->orwhere('project_description', 'like', '%'.$search.'%')->orwhere('neighborhood', 'like', '%'.$search.'%')->orwhereHas('district',function($qq) use($search) {
-                            $qq->where('name', 'like', '%'.$search.'%');
-                        });
-                    });
+
+            $csv = CSV::find(1);
+
+            $source = $layout->footer_csv;
+            $csv->description = $source;
+            $csv->save();
+
+            $csv = CSV::find(2);
+            $description = '';
+            if($child_taxonomy_names != ""){
+                $filter_category ='';
+                foreach($child_taxonomy_names as $child_taxonomy_name){
+                    $filter_category = $filter_category.$child_taxonomy_name.',';
                 }
-                $projects = $projects->get();
+
+                $description = $description."Category: ".$filter_category;
+            }
+            if($checked_organization_names != ""){
+                $filter_organization ='';
+                foreach($checked_organization_names as $checked_organization_name){
+                    $filter_organization = $filter_organization.$checked_organization_name.',';
+                }
+
+                $description = $description."Organization: ".$filter_organization;
+            }
+            if($checked_insurance_names != ""){
+                $filter_insurance ='';
+                foreach($checked_insurance_names as $checked_insurance_name){
+                    $filter_insurance = $filter_insurance.$checked_insurance_name.',';
+                }
+
+                $description = $description."Insurance: ".$filter_insurance;
+            }
+            if($checked_age_names != ""){
+                $filter_age ='';
+                foreach($checked_age_names as $checked_age_name){
+                    $filter_age = $filter_age.$checked_age_name.',';
+                }
+
+                $description = $description."Age: ".$filter_age;
+            }
+            if($checked_language_names != ""){
+                $filter_language ='';
+                foreach($checked_language_names as $checked_language_name){
+                    $filter_language = $filter_language.$checked_language_name.',';
+                }
+
+                $description = $description."Language: ".$filter_language;
+            }
+            if($checked_setting_names != ""){
+                $filter_setting ='';
+                foreach($checked_setting_names as $checked_setting_name){
+                    $filter_setting = $filter_setting.$checked_setting_name.',';
+                }
+
+                $description = $description."Setting: ".$filter_setting;
+            }
+            if($checked_cultural_names != ""){
+                $filter_cultural ='';
+                foreach($checked_cultural_names as $checked_cultural_name){
+                    $filter_cultural = $filter_cultural.$checked_cultural_name.',';
+                }
+
+                $description = $description."Cultural: ".$filter_cultural;
+            }
+            if($checked_transportation_names != ""){
+                $filter_transportation ='';
+                foreach($checked_transportation_names as $checked_transportation_name){
+                    $filter_transportation = $filter_cultural.$checked_transportation_name.',';
+                }
+
+                $description = $description."Transportation: ".$filter_transportation;
+            }
+            if($checked_hour_names != ""){
+                $filter_hour ='';
+                foreach($checked_hour_names as $checked_hour_name){
+                    $filter_hour = $filter_hour.$checked_hour_name.',';
+                }
+
+                $description = $description."Additional Hour: ".$filter_hour;
+            }
+
+            $csv->description = $description;
+            $csv->save();
+
+            $csv = CSV::find(3);
+            $csv->description = date('m/d/Y H:i:s');
+            $csv->save();
+            // var_dump($projects);
+            // var_dump($collection);
+            // exit();
+            $csv = CSV::all();
 
 
-                return view('frontEnd.explore1', compact('projects','address_district'))->render();
+            return $csvExporter->build($services, ['service_name'=>'Service Name', 'service_alternate_name'=>'Service Alternate Name', 'taxonomies'=>'Category', 'organizations'=>'Organization', 'phones'=>'Phone', 'address1'=>'Address', 'contacts'=>'Contact', 'service_description'=>'Service Description', 'service_url'=>'URL','service_application_process'=>'Application Process', 'service_wait_time'=>'Wait Time', 'service_fees'=>'Fees', 'service_accreditations'=>'Accreditations', 'service_licenses'=>'Licenses', 'details'=>'Details'])->build($csv, ['name'=>'', 'description'=>''])->download();
+        }
 
+    
+        $services = $services->paginate($pagination);
+        $locations = $locations->get();
+       
+        $map = Map::find(1);
+
+        return view('frontEnd.services', compact('services', 'locations', 'map', 'parent_taxonomy', 'child_taxonomy', 'checked_organizations', 'checked_insurances', 'checked_ages', 'checked_languages', 'checked_settings', 'checked_culturals', 'checked_transportations', 'checked_hours', 'pagination', 'sort'));
 
     }
     /**

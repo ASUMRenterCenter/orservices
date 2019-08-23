@@ -118,15 +118,30 @@ class EditlayoutController extends Controller
             $constraint->aspectRatio();})->save( public_path('/uploads/images/' . $filename ) );
             $layout->logo=$filename;
         }
+        if ($request->input('logo_active') == 'checked')
+        {
+            $layout->logo_active = 1;
+        }
+        else{
+            $layout->logo_active = 0;
+        }
         $layout->site_name=$request->site_name;
         $layout->tagline=$request->tagline;
+        $layout->sidebar_content=$request->sidebar_content;
         $layout->contact_text=$request->contact_text;
         $layout->contact_btn_label=$request->contact_btn_label;
         $layout->contact_btn_link=$request->contact_btn_link;
         $layout->footer=$request->footer;
+        $layout->header_pdf=$request->header_pdf;
+        $layout->footer_pdf=$request->footer_pdf;
+        $layout->footer_csv=$request->footer_csv;
+        $layout->primary_color=$request->primary_color;
+        $layout->secondary_color=$request->secondary_color;
+        $layout->button_color=$request->button_color;
+        $layout->button_hover_color=$request->button_hover_color;
         $layout->save();
 
-        Session::flash('message', 'Page updated!');
+        Session::flash('message', 'Appearance updated!');
         Session::flash('status', 'success');
 
         return redirect('layout_edit');

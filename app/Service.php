@@ -14,14 +14,16 @@ class Service extends Model
     protected $primaryKey = 'service_recordid';
     
 	public $timestamps = false;
-  
 
-	public function organization()
+    public function organizations()
     {
-        return $this->belongsTo('App\Organization', 'service_organization', 'organization_recordid');
+        $this->primaryKey='service_recordid';
+
+        return $this->belongsToMany('App\Organization', 'service_organization', 'service_recordid', 'organization_recordid');
+
     }
 
-     public function locations()
+    public function locations()
     {
         $this->primaryKey='service_recordid';
 
@@ -29,33 +31,49 @@ class Service extends Model
 
     }
 
+    public function details()
+    {
+
+        return $this->belongsToMany('App\Detail', 'service_detail', 'service_recordid', 'detail_recordid');
+    }
+
     public function taxonomy()
     {
-        return $this->belongsTo('App\Taxonomy', 'service_taxonomy', 'taxonomy_recordid');
+
+        return $this->belongsToMany('App\Taxonomy', 'service_taxonomy', 'service_recordid', 'taxonomy_recordid');
+
     }
 
     public function phone()
     {
-        return $this->hasmany('App\Phone', 'phone_services', 'service_recordid');
+        $this->primaryKey='service_recordid';
+
+        return $this->belongsToMany('App\Phone', 'service_phone', 'service_recordid', 'phone_recordid');
+
     }
 
-    public function schedule()
+    public function schedules()
     {
-        return $this->belongsTo('App\Schedule', 'id', 'schedule_recordid');
+        $this->primaryKey='service_recordid';
+
+        return $this->belongsToMany('App\Schedule', 'service_schedule', 'service_recordid', 'schedule_recordid');
     }
 
     public function contact()
     {
-        return $this->belongsTo('App\Contact', 'service_contacts', 'contact_recordid');
+
+        $this->primaryKey='service_recordid';
+
+        return $this->belongsToMany('App\Contact', 'service_contact', 'service_recordid', 'contact_recordid');
     }
 
-    public function detail()
-    {
-        return $this->hasmany('App\Detail', 'detail_services', 'service_recordid');
-    }
+
+   
 
     public function address()
     {
-        return $this->hasmany('App\Address', 'address_services', 'service_recordid');
+        $this->primaryKey='service_recordid';
+
+        return $this->belongsToMany('App\Address', 'service_address', 'service_recordid', 'address_recordid');
     }
 }

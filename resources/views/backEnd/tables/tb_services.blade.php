@@ -60,7 +60,7 @@ Services
                   
                   <td class="text-center">
                   @if($service->service_organization!=0)
-                    <span class="badge bg-green">{{$service->organization()->first()->organization_name}}</span>
+                    <span class="badge bg-green">{{$service->organizations()->first()->organization_name}}</span>
                   @endif
                   </td>
                  
@@ -89,7 +89,9 @@ Services
                   
                   <td class="text-center">
                     @if($service->service_taxonomy!=0)
-                    <span class="badge bg-blue">{{$service->taxonomy()->first()->taxonomy_name}}</span>
+                      @foreach($service->taxonomy as $taxonomy)
+                      <span class="badge bg-blue">{{$taxonomy->taxonomy_name}}</span>
+                      @endforeach
                     @endif
                   </td>
                 
@@ -101,16 +103,30 @@ Services
                   <td class="text-center">@foreach($service->phone as $phone)
                     <span class="badge bg-red">{!! $phone->phone_number !!}</span>
                   @endforeach</td>
-                  <td class="text-center"><span class="badge bg-purple">@if($service->service_schedule!=''){{$service->schedule()->first()->id}}@endif</span></td>
+                  <td class="text-center">
+                  
+                  
+                      @foreach($service->schedules as $schedule)
+                        
+                      <span class="badge bg-purple">{{$schedule->schedule_id}}</span>
+                      
+                      @endforeach
+                           
+                 
+                  </td>
+
                   <td class="text-center"><span class="badge bg-red">@if($service->service_contacts!=NULL)
                   {{$service->contact()->first()->contact_name}}</span>
                   @endif</td>
-                  <td class="text-center"><span style="white-space:normal;">
-                    @foreach($service->detail as $detail)
-                      <span class="badge bg-red">{!! $detail->detail_value !!}</span>
-                    @endforeach
-                    </span>
+                  
+                  <td class="text-center">
+                    @if($service->service_details != null )
+                      @foreach($service->details as $deta)
+                        <span class="badge bg-red">{{$deta->detail_value}}</span>
+                      @endforeach
+                    @endif
                   </td>
+
 
                   <td class="text-center"><span style="white-space:normal;">
                   @if($service->service_address!=NULL)

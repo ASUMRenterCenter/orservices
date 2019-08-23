@@ -54,7 +54,7 @@ a, a:hover, a:focus {
     max-width: 270px;
     background: #f3f3f3;
     color: #424242;
-    z-index: 1200;
+    z-index: 2;
     transition: all 0.3s;
     box-shadow: 0 1px 6px rgba(57,73,76,.35);
 
@@ -327,7 +327,7 @@ p{
 }
 
 .input-search{
-    box-shadow: 0 1px 6px rgba(57,73,76,.35);
+    box-shadow: 0 1px 4px 0 rgba(0,0,0,.1);
 }
 .form-control.search-form{
     border-radius: 0;
@@ -394,9 +394,6 @@ a[aria-expanded="false"]::before, a[aria-expanded="true"]::before {
 }
 .panel{
     box-shadow: 0 1px 6px rgba(57,73,76,.35);
-}
-p{
-    margin-bottom: 0;
 }
 .ui-slider {
   position: relative;
@@ -630,7 +627,7 @@ p{
   width: 33.333333%;
   height: 60%;
   margin-top: 18px;
-  z-index: 30000;
+  z-index: 1;
   box-shadow: 0 1px 6px rgba(57,73,76,.35);
 }
 .ui-front {
@@ -726,7 +723,6 @@ p{
   border: 0;
 }
 .btn-search{
-  padding-right: 20px !important;
   background: #2196F3;
   border-color: #2196F3;
 }
@@ -742,4 +738,16 @@ p{
   padding-right: 1.0715rem;
   padding-left: 1.0715rem;
   width: 100%;
+}
+.ui-helper-hidden-accessible{
+  display: none;
+}
+.btn-sort{
+  width: 160px;
+}
+.morelink{
+  color: #428bca !important;
+}
+.morelink:hover{
+  color: #428bca !important;
 }

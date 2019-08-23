@@ -10,10 +10,17 @@ use App\Servicelocation;
 use App\Servicephone;
 use App\Servicedetail;
 use App\Serviceaddress;
+use App\Serviceorganization;
+use App\Servicecontact;
+use App\Servicetaxonomy;
+use App\Serviceschedule;
 use App\Location;
 use App\Airtables;
 use App\Taxonomy;
+use App\Map;
+use App\Layout;
 use App\Services\Stringtoint;
+use PDF;
 
 class ServiceController extends Controller
 {
@@ -32,10 +39,14 @@ class ServiceController extends Controller
         Serviceaddress::truncate();
         Servicephone::truncate();
         Servicedetail::truncate();
+        Serviceorganization::truncate();
+        Servicecontact::truncate();
+        Servicetaxonomy::truncate();
+        Serviceschedule::truncate();
 
         $airtable = new Airtable(array(
-            'api_key'   => 'keyIvQZcMYmjNbtUO',
-            'base'      => 'appqjWvTygtaX9eil',
+            'api_key'   => env('AIRTABLE_API_KEY'),
+            'base'      => env('AIRTABLE_BASE_URL'),
         ));
 
         $request = $airtable->getContent( 'services' );
@@ -53,11 +64,27 @@ class ServiceController extends Controller
                 $service = new Service();
                 $strtointclass = new Stringtoint();
                 $service->service_recordid= $strtointclass->string_to_int($record[ 'id' ]);
-                $service->service_name = isset($record['fields']['name'])?$record['fields']['name']:null;
-                $service->service_organization = isset($record['fields']['organization'])? implode(",", $record['fields']['organization']):null;
-                $service->service_organization = $strtointclass->string_to_int($service->service_organization);
-                $service->service_alternate_name = isset($record['fields']['alternate_name'])?$record['fields']['alternate_name']:null;
-                $service->service_description = isset($record['fields']['description'])?$record['fields']['description']:null;
+                $service->service_name = isset($record['fields']['Name'])?$record['fields']['Name']:null;
+
+                if(isset($record['fields']['Organization'])){
+                    $i = 0;
+                    foreach ($record['fields']['Organization']  as  $value) {
+                        $service_organization = new Serviceorganization();
+                        $service_organization->service_recordid=$service->service_recordid;
+                        $service_organization->organization_recordid=$strtointclass->string_to_int($value);
+                        $service_organization->save();
+                        $serviceorganization=$strtointclass->string_to_int($value);
+
+                        if($i != 0)
+                            $service->service_organization = $service->service_organization. ','. $serviceorganization;
+                        else
+                            $service->service_organization = $serviceorganization;
+                        $i ++;
+                    }
+                }
+
+                $service->service_alternate_name = isset($record['fields']['Alternate Name'])?$record['fields']['Alternate Name']:null;
+                $service->service_description = isset($record['fields']['Description'])?$record['fields']['Description']:null;
 
                 if(isset($record['fields']['locations'])){
                     $i = 0;
@@ -79,9 +106,23 @@ class ServiceController extends Controller
                 $service->service_url = isset($record['fields']['url'])?$record['fields']['url']:null;
                 $service->service_email = isset($record['fields']['email'])?$record['fields']['email']:null;
                 $service->service_status = isset($record['fields']['status'])?$record['fields']['status']:null;
-                $service->service_taxonomy = isset($record['fields']['taxonomy'])? implode(",", $record['fields']['taxonomy']):null;
 
-                $service->service_taxonomy= $strtointclass->string_to_int($service->service_taxonomy);
+                if(isset($record['fields']['taxonomy'])){
+                    $i = 0;
+                    foreach ($record['fields']['taxonomy']  as  $value) {
+                        $service_taxonomy = new Servicetaxonomy();
+                        $service_taxonomy->service_recordid=$service->service_recordid;
+                        $service_taxonomy->taxonomy_recordid=$strtointclass->string_to_int($value);
+                        $service_taxonomy->save();
+                        $servicetaxonomy=$strtointclass->string_to_int($value);
+
+                        if($i != 0)
+                            $service->service_taxonomy = $service->service_taxonomy. ','. $servicetaxonomy;
+                        else
+                            $service->service_taxonomy = $servicetaxonomy;
+                        $i ++;
+                    }
+                }
 
                 $service->service_application_process = isset($record['fields']['application_process'])?$record['fields']['application_process']:null;
                 $service->service_wait_time = isset($record['fields']['wait_time'])?$record['fields']['wait_time']:null;
@@ -108,8 +149,39 @@ class ServiceController extends Controller
                 }
 
 
-                $service->service_schedule = isset($record['fields']['schedule'])? implode(",", $record['fields']['schedule']):null;
-                $service->service_contacts = isset($record['fields']['contacts'])? implode(",", $record['fields']['contacts']):null;
+                if(isset($record['fields']['schedule'])){
+                    $i = 0;
+                    foreach ($record['fields']['schedule']  as  $value) {
+                        $service_schedule = new Serviceschedule();
+                        $service_schedule->service_recordid=$service->service_recordid;
+                        $service_schedule->schedule_recordid=$strtointclass->string_to_int($value);
+                        $service_schedule->save();
+                        $serviceschedule=$strtointclass->string_to_int($value);
+
+                        if($i != 0)
+                            $service->service_schedule = $service->service_schedule. ','. $serviceschedule;
+                        else
+                            $service->service_schedule = $serviceschedule;
+                        $i ++;
+                    }
+                }
+
+                if(isset($record['fields']['contacts'])){
+                    $i = 0;
+                    foreach ($record['fields']['contacts']  as  $value) {
+                        $service_contact = new Servicecontact();
+                        $service_contact->service_recordid=$service->service_recordid;
+                        $service_contact->contact_recordid=$strtointclass->string_to_int($value);
+                        $service_contact->save();
+                        $servicecontact=$strtointclass->string_to_int($value);
+
+                        if($i != 0)
+                            $service->service_contacts = $service->service_contacts. ','. $servicecontact;
+                        else
+                            $service->service_contacts = $servicecontact;
+                        $i ++;
+                    }
+                }
 
                 if(isset($record['fields']['details'])){
                     $i = 0;
@@ -145,7 +217,9 @@ class ServiceController extends Controller
                     }
                 }
 
-                $service->service_metadata = isset($record['fields']['metadata'])? $record['fields']['metadata']:null;              
+                $service->service_metadata = isset($record['fields']['metadata'])? $record['fields']['metadata']:null;
+
+                $service->service_airs_taxonomy_x = isset($record['fields']['AIRS Taxonomy-x'])? implode(",", $record['fields']['AIRS Taxonomy-x']):null;          
                 
                 $service ->save();
 
@@ -164,8 +238,7 @@ class ServiceController extends Controller
 
     public function index()
     {
-        $services = Service::with('locations')->orderBy('service_name')->paginate(10);
-        
+        $services = Service::orderBy('service_name')->paginate(10);      
 
         return view('backEnd.tables.tb_services', compact('services'));
     }
@@ -175,26 +248,65 @@ class ServiceController extends Controller
     {
         $services = Service::with('locations')->orderBy('service_name')->paginate(10);
         $locations = Location::with('services','organization')->get();
+        $map = Map::find(1);
+        $parent_taxonomy = [];
+        $child_taxonomy = [];
+        $checked_organizations = [];
+        $checked_insurances = [];
+        $checked_ages = [];
+        $checked_languages = [];
+        $checked_settings = [];
+        $checked_culturals = [];
+        $checked_transportations = [];
+        $checked_hours= [];
 
-        return view('frontEnd.services', compact('services', 'locations'));
+        return view('frontEnd.services', compact('services', 'locations', 'map', 'parent_taxonomy', 'child_taxonomy', 'checked_organizations', 'checked_insurances', 'checked_ages', 'checked_languages', 'checked_settings', 'checked_culturals', 'checked_transportations', 'checked_hours'));
     }
 
     public function service($id)
     {
         $service = Service::where('service_recordid', '=', $id)->first();
-        $location = Location::with('organization', 'address')->where('location_services', '=', $id)->get();
+        $location = Location::with('organization', 'address')->where('location_services', 'like', '%'.$id.'%')->get();
 
-        return view('frontEnd.service', compact('service', 'location'));
+        $map = Map::find(1);
+        $parent_taxonomy = [];
+        $child_taxonomy = [];
+        $checked_organizations = [];
+        $checked_insurances = [];
+        $checked_ages = [];
+        $checked_languages = [];
+        $checked_settings = [];
+        $checked_culturals = [];
+        $checked_transportations = [];
+        $checked_hours= [];
+
+        return view('frontEnd.service', compact('service', 'location', 'map', 'parent_taxonomy', 'child_taxonomy', 'checked_organizations', 'checked_insurances', 'checked_ages', 'checked_languages', 'checked_settings', 'checked_culturals', 'checked_transportations', 'checked_hours'));
     }
 
     public function taxonomy($id)
     {
-        $chip_name = Taxonomy::find($id)->value('taxonomy_name');
+        $chip_name = Taxonomy::where('taxonomy_recordid', '=', $id)->first()->taxonomy_name;
         $chip_title = 'Category:';
-        $services = Service::where('service_taxonomy', '=', $id)->orderBy('service_name')->paginate(10);
-        $locations = Location::where('location_organization', '=', $id)->with('services','organization')->get();
+        $services = Service::where('service_taxonomy', 'like', '%'.$id.'%')->orderBy('service_name')->paginate(10);
+        $serviceids = Service::where('service_taxonomy', 'like', '%'.$id.'%')->orderBy('service_name')->pluck('service_recordid')->toArray();
+        $locationids = Servicelocation::whereIn('service_recordid', $serviceids)->pluck('location_recordid')->toArray();
 
-        return view('frontEnd.chip', compact('services', 'locations', 'chip_title', 'chip_name'));
+        $locations = Location::whereIn('location_recordid', $locationids)->with('services','organization')->get();
+
+        $map = Map::find(1);
+
+        $parent_taxonomy = [];
+        $child_taxonomy = [];
+        $checked_organizations = [];
+        $checked_insurances = [];
+        $checked_ages = [];
+        $checked_languages = [];
+        $checked_settings = [];
+        $checked_culturals = [];
+        $checked_transportations = [];
+        $checked_hours= [];
+
+        return view('frontEnd.chip', compact('services', 'locations', 'chip_title', 'chip_name', 'map', 'parent_taxonomy', 'child_taxonomy', 'checked_organizations', 'checked_insurances', 'checked_ages', 'checked_languages', 'checked_settings', 'checked_culturals', 'checked_transportations', 'checked_hours'));
     }
 
     /**
@@ -202,9 +314,17 @@ class ServiceController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function create()
+    public function download($id)
     {
-        //
+        $service = Service::where('service_recordid', '=', $id)->first();
+        $service_name= $service->service_name;
+
+        $layout = Layout::find(1);
+
+        $pdf = PDF::loadView('frontEnd.service_download', compact('service', 'layout'));
+
+        return $pdf->download($service_name.'.pdf');
+
     }
 
     /**

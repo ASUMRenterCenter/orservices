@@ -8,24 +8,50 @@ use App\Layout;
 use App\Service;
 use App\Organization;
 use App\Taxonomy;
+use App\Map;
 use App\Location;
+use App\Analytic;
 use App\Http\Controllers\Controller;
 
 class HomeController extends Controller
 {
     public function home($value='')
     {
-        $home = Page::where('name', 'Home')->first();
-        $taxonomies = Taxonomy::where('taxonomy_parent_name', '=', NULL)->get();
+        $home = Layout::find(1);
+        $map = Map::find(1);
+        $taxonomies = Taxonomy::where('taxonomy_parent_name', '=', NULL)->orderBy('taxonomy_name', 'asc')->get();
+        $parent_taxonomy = [];
+        $child_taxonomy = [];
+        $checked_organizations = [];
+        $checked_insurances = [];
+        $checked_ages = [];
+        $checked_languages = [];
+        $checked_settings = [];
+        $checked_culturals = [];
+        $checked_transportations = [];
+        $checked_hours= [];
 
-    	return view('frontEnd.home', compact('home', 'taxonomies'));
+        return view('frontEnd.home', compact('home', 'taxonomies', 'map', 'parent_taxonomy', 'child_taxonomy', 'checked_organizations', 'checked_insurances', 'checked_ages', 'checked_languages', 'checked_settings', 'checked_culturals', 'checked_transportations', 'checked_hours'));
     }
 
     public function about($value='')
     {
+        $parent_taxonomy = [];
+        $child_taxonomy = [];
+        $checked_organizations = [];
+        $checked_insurances = [];
+        $checked_ages = [];
+        $checked_languages = [];
+        $checked_settings = [];
+        $checked_culturals = [];
+        $checked_transportations = [];
+        $checked_hours= [];
+
         $about = Page::where('name', 'About')->first();
-        $home = Page::where('name', 'Home')->first();
-        return view('frontEnd.about', compact('about', 'home'));
+        $home = Layout::find(1);
+        $map = Map::find(1);
+
+        return view('frontEnd.about', compact('about', 'home', 'map', 'parent_taxonomy', 'child_taxonomy', 'checked_organizations', 'checked_insurances', 'checked_ages', 'checked_languages', 'checked_settings', 'checked_culturals', 'checked_transportations', 'checked_hours'));
     }
 
     public function feedback($value='')
@@ -36,12 +62,13 @@ class HomeController extends Controller
 
     public function YourhomePage($value='')
     {
-    	return view('home');
+        return view('home');
     }
 
     public function dashboard($value='')
     {
-    	return view('backEnd.dashboard');
+        $layout = Layout::first();
+        return view('backEnd.dashboard', compact('layout'));
     }
 
     public function logviewerdashboard($value='')
@@ -51,17 +78,52 @@ class HomeController extends Controller
 
     public function search(Request $request)
     {
-        $chip_name = $request->input('find');
+        $chip_service = $request->input('find');
         $chip_title ="Search for Services:";
 
-        $services= Service::with(['organization', 'taxonomy'])->where('service_name', 'like', '%'.$chip_name.'%')->orwhere('service_description', 'like', '%'.$chip_name.'%')->orwhereHas('organization', function ($q)  use($chip_name){
-                    $q->where('organization_name', 'like', '%'.$chip_name.'%');
-                })->orwhereHas('taxonomy', function ($q)  use($chip_name){
-                    $q->where('taxonomy_name', 'like', '%'.$chip_name.'%');
-                })->paginate(10);
-        $locations = Location::with('services','organization')->get();
+        $parent_taxonomy = [];
+        $child_taxonomy = [];
+        $checked_organizations = [];
+        $checked_insurances = [];
+        $checked_ages = [];
+        $checked_languages = [];
+        $checked_settings = [];
+        $checked_culturals = [];
+        $checked_transportations = [];
+        $checked_hours= [];
 
+        $services= Service::with(['organizations', 'taxonomy', 'details'])->where('service_name', 'like', '%'.$chip_service.'%')->orwhere('service_description', 'like', '%'.$chip_service.'%')->orwhere('service_airs_taxonomy_x', 'like', '%'.$chip_service.'%')->orwhereHas('organizations', function ($q)  use($chip_service){
+                    $q->where('organization_name', 'like', '%'.$chip_service.'%');
+                })->orwhereHas('taxonomy', function ($q)  use($chip_service){
+                    $q->where('taxonomy_name', 'like', '%'.$chip_service.'%');
+                })->orwhereHas('details', function ($q)  use($chip_service){
+                    $q->where('detail_value', 'like', '%'.$chip_service.'%');
+                })->paginate(10);
+        $search_results = Service::with(['organizations', 'taxonomy', 'details'])->where('service_name', 'like', '%'.$chip_service.'%')->orwhere('service_description', 'like', '%'.$chip_service.'%')->orwhere('service_airs_taxonomy_x', 'like', '%'.$chip_service.'%')->orwhereHas('organizations', function ($q)  use($chip_service){
+                    $q->where('organization_name', 'like', '%'.$chip_service.'%');
+                })->orwhereHas('taxonomy', function ($q)  use($chip_service){
+                    $q->where('taxonomy_name', 'like', '%'.$chip_service.'%');
+                })->orwhereHas('details', function ($q)  use($chip_service){
+                    $q->where('detail_value', 'like', '%'.$chip_service.'%');
+                })->count();
+        $locations = Location::with('services','organization')->get();
+        $map = Map::find(1);
+
+        $analytic = Analytic::where('search_term', '=', $chip_service)->first();
+        if(isset($analytic)){
+            $analytic->search_term = $chip_service;
+            $analytic->search_results = $search_results;
+            $analytic->times_searched = $analytic->times_searched + 1;
+            $analytic->save();
+        }
+        else{
+            $new_analytic = new Analytic();
+            $new_analytic->search_term = $chip_service;
+            $new_analytic->search_results = $search_results;
+            $new_analytic->times_searched = 1;
+            $new_analytic->save();
+        }
         // $services =Service::where('service_name',  'like', '%'.$search.'%')->get();
-        return view('frontEnd.chip', compact('services','locations', 'chip_title', 'chip_name'));
+        return view('frontEnd.services', compact('services','locations', 'chip_title', 'chip_service', 'map', 'parent_taxonomy', 'child_taxonomy', 'checked_organizations', 'checked_insurances', 'checked_ages', 'checked_languages', 'checked_settings', 'checked_culturals', 'checked_transportations', 'checked_hours', 'search_results'));
     }
 }

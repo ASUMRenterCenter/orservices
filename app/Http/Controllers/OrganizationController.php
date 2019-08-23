@@ -6,9 +6,13 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Functions\Airtable;
 use App\Organization;
+use App\Organizationdetail;
 use App\Location;
+use App\Layout;
+use App\Map;
 use App\Airtables;
 use App\Services\Stringtoint;
+use PDF;
 
 class OrganizationController extends Controller
 {
@@ -17,9 +21,11 @@ class OrganizationController extends Controller
     {
 
         Organization::truncate();
+        Organizationdetail::truncate();
+
         $airtable = new Airtable(array(
-            'api_key'   => 'keyIvQZcMYmjNbtUO',
-            'base'      => 'appqjWvTygtaX9eil',
+            'api_key'   => env('AIRTABLE_API_KEY'),
+            'base'      => env('AIRTABLE_BASE_URL'),
         ));
 
         $request = $airtable->getContent( 'organizations' );
@@ -37,6 +43,25 @@ class OrganizationController extends Controller
                 $strtointclass = new Stringtoint();
                 $organization->organization_recordid= $strtointclass->string_to_int($record[ 'id' ]);
                 $organization->organization_name = isset($record['fields']['name'])?$record['fields']['name']:null;
+                if(isset($record['fields']['logo-x'])){
+                    foreach ($record['fields']['logo-x'] as $key => $image) {
+                        try {
+                            $organization->organization_logo_x .= $image["url"];
+                        } catch (Exception $e) {
+                            echo 'Caught exception: ',  $e->getMessage(), "\n";
+                        }
+                    }
+                }
+                if(isset($record['fields']['forms-x'])){
+                    foreach ($record['fields']['forms-x'] as $key => $form) {
+                        try {
+                            $organization->organization_forms_x_filename .= $form["filename"];
+                            $organization->organization_forms_x_url .= $form["url"];
+                        } catch (Exception $e) {
+                            echo 'Caught exception: ',  $e->getMessage(), "\n";
+                        }
+                    }
+                }
                 $organization->organization_alternate_name = isset($record['fields']['alternate_name'])?$record['fields']['alternate_name']:null;
                 $organization->organization_x_uid = isset($record['fields']['x-uid'])?$record['fields']['x-uid']:null;
                 $organization->organization_description = isset($record['fields']['description'])?$record['fields']['description']:null;
@@ -45,6 +70,15 @@ class OrganizationController extends Controller
 
                 $organization->organization_email = isset($record['fields']['email'])?$record['fields']['email']:null;
                 $organization->organization_url = isset($record['fields']['url'])?$record['fields']['url']:null;
+                $organization->organization_status_x = isset($record['fields']['status-x'])?$record['fields']['status-x']:null;
+                if($organization->organization_status_x == 'Vetted')
+                    $organization->organization_status_sort = 1;
+                if($organization->organization_status_x == 'Vetting In Progress')
+                    $organization->organization_status_sort = 2;
+                if($organization->organization_status_x == 'Not vetted')
+                    $organization->organization_status_sort = 3;
+                if($organization->organization_status_x == null)
+                    $organization->organization_status_sort = 4;
                 $organization->organization_legal_status = isset($record['fields']['legal_status'])?$record['fields']['legal_status']:null;
                 $organization->organization_tax_status = isset($record['fields']['tax_status'])?$record['fields']['tax_status']:null;
                 $organization->organization_legal_status = isset($record['fields']['legal_status'])?$record['fields']['legal_status']:null;
@@ -66,7 +100,19 @@ class OrganizationController extends Controller
                     }
                 }
 
-                $organization->organization_phones = isset($record['fields']['phones'])? implode(",", $record['fields']['phones']):null;
+                if(isset($record['fields']['phones'])){
+                    $i = 0;
+                    foreach ($record['fields']['phones']  as  $value) {
+
+                        $organizationphone=$strtointclass->string_to_int($value);
+
+                        if($i != 0)
+                            $organization->organization_phones = $organization->organization_phones. ','. $organizationphone;
+                        else
+                            $organization->organization_phones = $organizationphone;
+                        $i ++;
+                    }
+                }
                 
 
                 if(isset($record['fields']['locations'])){
@@ -86,9 +132,34 @@ class OrganizationController extends Controller
 
                 $organization->organization_contact = $strtointclass->string_to_int($organization->organization_contact);
 
-                $organization->organization_details = isset($record['fields']['details']) ?implode(",", $record['fields']['details']):null;
+                if(isset($record['fields']['details'])){
+                    $i = 0;
+                    foreach ($record['fields']['details']  as  $value) {
+                        $organization_detail = new Organizationdetail();
+                        $organization_detail->organization_recordid=$organization->organization_recordid;
+                        $organization_detail->detail_recordid=$strtointclass->string_to_int($value);
+                        $organization_detail->save();
+                        $organizationdetail=$strtointclass->string_to_int($value);
 
-                $organization->organization_details = $strtointclass->string_to_int($organization->organization_details);
+                        if($i != 0)
+                            $organization->organization_details = $organization->organization_details. ','. $organizationdetail;
+                        else
+                            $organization->organization_details = $organizationdetail;
+                        $i ++;
+                    }
+                }
+
+                if(isset($record['fields']['AIRS Taxonomy-x'])){
+                    $i = 0;
+                    foreach ($record['fields']['AIRS Taxonomy-x']  as  $value) {
+
+                        if($i != 0)
+                            $organization->organization_airs_taxonomy_x = $organization->organization_airs_taxonomy_x . ','. $value;
+                        else
+                            $organization->organization_airs_taxonomy_x  = $value;
+                        $i ++;
+                    }
+                } 
 
                 $organization ->save();
 
@@ -117,17 +188,51 @@ class OrganizationController extends Controller
 
     public function organizations()
     {
-        $organizations = Organization::orderBy('organization_name')->paginate(10);
+        $organizations = Organization::orderBy('organization_status_sort')->orderBy('organization_name')->paginate(10);
+        $map = Map::find(1);
+        $parent_taxonomy = [];
+        $child_taxonomy = [];
+        $checked_organizations = [];
+        $checked_insurances = [];
+        $checked_ages = [];
+        $checked_languages = [];
+        $checked_settings = [];
+        $checked_culturals = [];
+        $checked_transportations = [];
+        $checked_hours= [];
 
-        return view('frontEnd.organizations', compact('organizations'));
+        return view('frontEnd.organizations', compact('organizations', 'map', 'parent_taxonomy', 'child_taxonomy', 'checked_organizations', 'checked_insurances', 'checked_ages', 'checked_languages', 'checked_settings', 'checked_culturals', 'checked_transportations', 'checked_hours'));
     }
 
     public function organization($id)
     {
         $organization = Organization::where('organization_recordid', '=', $id)->first();
         $locations = Location::with('services', 'address')->where('location_organization', '=', $id)->get();
+        $map = Map::find(1);
+        $parent_taxonomy = [];
+        $child_taxonomy = [];
+        $checked_organizations = [];
+        $checked_insurances = [];
+        $checked_ages = [];
+        $checked_languages = [];
+        $checked_settings = [];
+        $checked_culturals = [];
+        $checked_transportations = [];
+        $checked_hours= [];
 
-        return view('frontEnd.organization', compact('organization', 'locations'));
+        return view('frontEnd.organization', compact('organization', 'locations', 'map', 'parent_taxonomy', 'child_taxonomy', 'checked_organizations', 'checked_insurances', 'checked_ages', 'checked_languages', 'checked_settings', 'checked_culturals', 'checked_transportations', 'checked_hours'));
+    }
+
+    public function download($id)
+    {
+        $organization = Organization::where('organization_recordid', '=', $id)->first();
+        $organization_name = $organization->organization_name;
+
+        $layout = Layout::find(1);
+
+        $pdf = PDF::loadView('frontEnd.organization_download', compact('organization', 'layout'));
+
+        return $pdf->download($organization_name.'.pdf');
     }
 
     /**

@@ -17,6 +17,9 @@ Home
     ul#tree1 {
         column-count: 2;
     }
+    .home-category{
+        cursor: pointer;
+    }
 </style>
 <link href="{{asset('css/treeview.css')}}" rel="stylesheet">
 @section('content')
@@ -29,18 +32,16 @@ Home
               <!-- Panel -->
               <div class="panel mb-10">
                 <div class="panel-heading text-center">
-                    <h1 class="panel-title" style="font-size: 25px;">I Need ...</h1>
+                    <h1 class="panel-title" style="font-size: 25px;">I'm looking for ...</h1>
                 </div>
                 <div class="panel-body text-center">
                     <form action="/find" method="POST" class="hidden-sm hidden-xs col-md-6 col-md-offset-3" style="display: block !important; padding-bottom: 30px;padding: 5px; ">
                         <input type="hidden" name="_token" value="{{ csrf_token() }}">
                         <div class="input-group pull-right text-white pr-25">
-                          <!--   <input type="text" placeholder="Search here..." class="form-control text-black" name="find"/>
-                            <button type="submit" class="btn btn-primary"><i class="fa fa-search"></i></button> -->
 
-                            <input type="text" class="form-control" placeholder="Search here..." name="find"/>
+                            <input type="text" class="form-control" placeholder="Search here..." name="find"/ style="z-index: 0;">
                             <div class="input-group-btn pull-right ">
-                                <button type="submit" class="btn btn-primary btn-search"><i class="fa fa-search"></i></button>
+                                <button type="submit" class="btn btn-primary btn-search bg-primary-color"><i class="fa fa-search"></i></button>
                             </div>
 
                         </div>
@@ -56,9 +57,9 @@ Home
                     <ul id="tree1">
                         @foreach($taxonomies as $taxonomy)
                             <li>
-                                <a href="category_{{$taxonomy->taxonomy_recordid}}">{{$taxonomy->taxonomy_name}}</a>
+                                <a at="{{$taxonomy->taxonomy_recordid}}" class="home-category">{{$taxonomy->taxonomy_name}}</a>
                                 @if(count($taxonomy->childs))
-                                    @include('frontLayout.manageChild',['childs' => $taxonomy->childs])
+                                    @include('layouts.manageChild',['childs' => $taxonomy->childs])
                                 @endif
                             </li>
                         @endforeach
@@ -69,16 +70,16 @@ Home
             <div class="col-xl-5 col-md-5">
               <!-- Panel -->
                 <div class="panel">
-                    <div class="panel-body bg-custom">
+                    <div class="panel-body bg-primary-color">
                         <div class="form-group">
                             <h4 class="text-white">Find Services Near an Address?</h4>
-                            <form method="post" action="/search_address">
+                            <form method="post" action="/search_address" id="search_location">
                             <input type="hidden" name="_token" value="{{ csrf_token() }}">
                               <div class="form-group">
                                   
                                     <div class="input-search">
-                                        <i class="input-search-icon md-search" aria-hidden="true"></i>
-                                        <input id="location" type="text" class="form-control text-black" name="search_address" placeholder="Search Address" style="border-radius:0;">
+                                        <i class="input-search-icon md-pin" aria-hidden="true"></i>
+                                        <input id="location1" type="text" class="form-control text-black" name="search_address" placeholder="Search Address" style="border-radius:0;">
                                     </div>
                                   
                               </div>
@@ -88,61 +89,27 @@ Home
                         </div>
                     </div>
                     <div class="panel-body">
-                        {!! $home->body !!}
+                        {!! $home->sidebar_content !!}
                     </div>
                 </div>
             </div>
               <!-- End Panel -->
         </div>
     </div>
-<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+
+
 <script src="{{asset('js/treeview.js')}}"></script>
-<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-<!-- <script>
-    $(document).ready(function(){
-        if(screen.width < 768){
-          var text= $('.navbar-header').css('height');
-          var height = text.slice(0, -2);
-          $('.page').css('padding-top', height);
-          $('#content').css('top', height);
-        }
-        else{
-          var text= $('.navbar-header').css('height');
-          var height = 0;
-          $('.page').css('margin-top', height);
-        }
-    });
-</script> -->
+<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 <script>
-
-$(function () {
-    var getData = function (request, response) {
-        $.getJSON(
-            "https://geosearch.planninglabs.nyc/v1/autocomplete?text=" + request.term,
-            function (data) {
-                response(data.features);
-                
-                var label = new Object();
-                for(i = 0; i < data.features.length; i++)
-                    label[i] = data.features[i].properties.label;
-                response(label);
-            });
-    };
- 
-    var selectItem = function (event, ui) {
-        $("#location").val(ui.item.value);
-        return false;
-    }
- 
-    $("#location").autocomplete({
-        source: getData,
-        select: selectItem,
-        minLength: 2,
-        change: function() {
-            console.log(selectItem);
-
-        }
+$(document).ready(function(){
+    $('.home-category').on('click', function(e){
+        var id = $(this).attr('at');
+        console.log(id);
+        $("#category_" +  id).prop( "checked", true );
+        $("#filter").submit();
     });
 });
 </script>

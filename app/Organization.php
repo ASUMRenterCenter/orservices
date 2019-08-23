@@ -12,14 +12,15 @@ class Organization extends Model
     
 	public $timestamps = false;
 
-	public function service()
+	public function services()
     {
         return $this->hasMany('App\Service', 'service_organization', 'organization_recordid');
+        
     }
 
-    public function phone()
+    public function phones()
     {
-        return $this->hasmany('App\Phone', 'phone_organization', 'organization_recordid');
+        return $this->hasmany('App\Phone', 'phone_organizations', 'organization_recordid');
     }
 
     public function location()
@@ -32,8 +33,8 @@ class Organization extends Model
         return $this->hasmany('App\Contact', 'contact_organizations', 'organization_recordid');
     }
 
-    public function detail()
+    public function details()
     {
-        return $this->hasmany('App\Detail', 'detail_organizations', 'organization_recordid');
+        return $this->belongsToMany('App\Detail', 'organization_detail', 'organization_recordid', 'detail_recordid');
     }
 }

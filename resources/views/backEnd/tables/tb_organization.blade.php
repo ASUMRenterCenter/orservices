@@ -1,6 +1,6 @@
 @extends('backLayout.app')
 @section('title')
-Organization
+Organizations
 @stop
 <style>
     tr.modified{
@@ -18,7 +18,7 @@ Organization
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel">
       <div class="x_title">
-        <h2>Projects</h2>
+        <h2>Organizations</h2>
         <div class="clearfix"></div>  
       </div>
       <div class="x_content" style="overflow: scroll;">
@@ -70,13 +70,15 @@ Organization
 
                   <td class="text-center">{{$organization->organization_year_incorporated}}</td>
 
-                  <td class="text-center">@if($organization->organization_services!='')@foreach($organization->service as $service)
+                  <td class="text-center">@if($organization->organization_services)
+                  @foreach($organization->services as $service)
                     <span class="badge bg-green">{{$service->service_name}}</span>
                   @endforeach
                   @endif
                   </td>
 
-                  <td class="text-center">@if($organization->organization_phones!='')@foreach($organization->phone as $phone)
+                  <td class="text-center">@if($organization->organization_phones!='')
+                  @foreach($organization->phones as $phone)
                     <span class="badge bg-blue">{{$phone->phone_number}}</span>
                   @endforeach
                   @endif

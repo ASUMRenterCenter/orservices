@@ -1,7 +1,7 @@
 
 <div class="left_col scroll-view">
   <div class="navbar nav_title" style="border: 0;">
-    <a href="{{url('dashboard')}}" class="site_title"><i class="fa fa-paw"></i> <span>NYC Services</span></a>
+    <a href="{{url('dashboard')}}" class="site_title"><span>{{$layout->site_name}}</span></a>
   </div>
 
   <div class="clearfix"></div>
@@ -32,13 +32,16 @@
       <ul class="nav side-menu">
         <!-- <li><a href="{{route('pages.index')}}"><i class="fa fa-windows"></i> Pages</span></a>
         </li> -->
-        <li><a><i class="fa fa-table"></i> Pages <span class="fa fa-chevron-down"></span></a>
+        <li><a><i class="fa fa-table"></i> Settings <span class="fa fa-chevron-down"></span></a>
           <ul class="nav child_menu">
-            <li><a href="/layout_edit">Layout</a></li>
-            <li><a href="/home_edit">Home</a></li>
-            <li><a href="/about_edit">About</a></li>
+            <li><a href="/layout_edit">Appearance</a></li>
+            <!-- <li><a href="/home_edit">Home</a></li> -->
+            <li><a href="/about_edit">About Page</a></li>
+            <li><a href="/data">Data</a></li>
+            <li><a href="/map">Map</a></li>
           </ul>
-        </li>      
+        </li>
+        <li><a href="/analytics"><i class="fa fa-line-chart"></i> Analytics</a>      
         <li><a href="/datasync"><i class="fa fa-database"></i> Datasync</a>
         </li>
         <li><a><i class="fa fa-table"></i> Tables <span class="fa fa-chevron-down"></span></a>
